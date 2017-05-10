@@ -1,0 +1,23 @@
+{
+  "name": "lorraine",
+  "version": "1.0.0",
+  "description": "test",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ayusho/lorraine.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ayusho/lorraine/issues"
+  },
+  "homepage": "https://github.com/ayusho/lorraine#readme",
+  "dependencies": {
+    "botbuilder": "^3.8.0",
+    "restify": "^4.3.0"
+  }
+}
