@@ -8,12 +8,31 @@ A simple "Hello World" bot that can be run from a console window.
 
 -----------------------------------------------------------------------------*/
 
-var builder = require('../../core/');
+var restify = require('restify');
+var builder = require('botbuilder');
 
-// Create console connector and listen to stdin for messages 
-var connector = new builder.ConsoleConnector().listen();
+//=========================================================
+// Bot Setup
+//=========================================================
 
-// Create your bot with a function to receive messages from the user
-var bot = new builder.UniversalBot(connector, function (session) {
-    session.send("You said: %s", session.message.text);
+// Setup Restify Server
+var server = restify.createServer();
+server.listen(process.env.port || process.env.PORT || 3978, function () {
+   console.log('%s listening to %s', server.name, server.url); 
+});
+  
+// Create chat bot
+var connector = new builder.ChatConnector({
+    appId: process.env.MICROSOFT_APP_ID,
+    appPassword: process.env.MICROSOFT_APP_PASSWORD
+});
+var bot = new builder.UniversalBot(connector);
+server.post('/api/messages', connector.listen());
+
+//=========================================================
+// Bots Dialogs
+//=========================================================
+
+bot.dialog('/', function (session) {
+    session.send("Hello World");
 });
