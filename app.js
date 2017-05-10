@@ -33,7 +33,7 @@ bot.dialog('firstRun', [
         // - The version number needs to be updated first to prevent re-triggering 
         //   the dialog. 
         session.userData.version = 1.0;
-        builder.Prompts.text(session, "Hello... What's your name?");
+        builder.Prompts.text(session, "Hello... What is your name?");
     },
     function (session, results) {
         // We'll save the users name and send them an initial greeting. All 
