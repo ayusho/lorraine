@@ -61,8 +61,8 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
 
 // Create chat bot
 var connector = new builder.ChatConnector({
-    appId: 'c4d12a93-c875-47ca-9700-28e949ec657a',
-    appPassword: 'spZVMeScmRcN7QdP3afw5wE'
+    appId: process.env.MICROSOFT_APP_ID,
+    appPassword: process.env.MICROSOFT_APP_PASSWORD
 });
 
 server.post('/api/messages', connector.listen());
@@ -77,7 +77,7 @@ bot.recognizer(recognizer);
 //=========================================================
 // Bots Dialogs
 //=========================================================
-
+var selectedItem;
 // Add first run dialog
 bot.dialog('returnItem', [
     function (session, args, next) {
@@ -86,33 +86,40 @@ bot.dialog('returnItem', [
         // try extracting entities
         var dateEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'date');
         var itemsEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'items');
-        if (itemsEntity && dateEntity) {
-            // city entity detected, continue to next step
-            session.send('Hi Alison, of course. We are processing your request. Please wait for a moment...');
-            session.dialogData.searchType = 'itemsAndDate';
+        session.send('Hi Alison, of course. We are processing your request. Please wait for a moment...');
+        if (itemsEntity != null && dateEntity != null) {
             next({
                 response: [itemsEntity.entity, dateEntity.entity]
             });
-        } else if (itemsEntity) {
-            // airport entity detected, continue to next step
-            session.send('Hi Alison, of course. We are processing your request. Please wait for a moment...');
-            session.dialogData.searchType = 'items';
-            next({
-                response: [itemsEntity.entity]
-            });
-        } else {
-            // no entities detected, ask user for a destination
-            builder.Prompts.text(session, 'Please provide more information...');
         }
-    },
-    function (session, results) {
-        var items = results.response[0];
-        if (results.response.length == 2)
-            var date = results.response[1];
+        else if (itemsEntity != null) {
+            next({
+                response: [itemsEntity.entity, null]
+            });
+        }
+        else if (dateEntity != null) {
+            next({
+                response: [null, dateEntity.entity]
+            });
+        }
+        else {
+            next({
+                response: [null, null]
+            });
+        }
 
+    },
+    function (session, results, next) {
+        // if (results.response[0] != null) {
+        //     var items = results.response[0];
+        //     if (results.response.length == 2)
+        //         var date = results.response[1];
+        // }
+        var items = results.response[0];
+        var date = results.response[1];
         // Async search
         Store
-            .findItems(items)
+            .findItems(items, date)
             .then(function (listOfItems) {
                 // args
                 session.send('I found %d items:', listOfItems.length);
@@ -123,9 +130,28 @@ bot.dialog('returnItem', [
 
                 session.send(message);
 
-                // End
-                session.endDialog();
+                // while (selectedItem != null);
+                session.send(selectedItem);
+                next();
+                // session.endDialog();
             });
+        //builder.Prompts.text(session, "select an item");
+    },
+    function (session) {
+        builder.Prompts.text(session, "Can you please provide why you want to return ?");
+    },
+    function (session, results) {
+        console.log(results.response);
+        session.userData.returnReason = results.response;
+        session.send("Thanks for your response.");
+        builder.Prompts.choice(session, 'Please select a return method', ['A', 'B', 'C', 'Drop at Post Office']);
+    },
+    function (session, results) {
+        session.userData.returnMethod = results.response.entity;
+        session.send('You selected ' + session.userData.returnMethod + ' return method.');
+        session.send('Okay. The nearest Post Office to your delivery address is:');
+        session.send('Broadway Post Office\n\n1 Broadway,\n\nWestminster,\n\nLondon SW1H 0AX');
+        session.endDialog();
     }
 ]).triggerAction({
     matches: 'returnItem',
@@ -133,19 +159,60 @@ bot.dialog('returnItem', [
         session.send('Please provide information');
     }
 });
+
+// bot.dialog('itemSelected', [
+//     function (session, args, next) {
+//         // // Get color and optional size from users utterance
+//         // //var utterance = args.intent.matched[0];
+//         // //var color = /(white|gray)/i.exec(utterance);
+//         // //var size = /\b(Extra Large|Large|Medium|Small)\b/i.exec(utterance);
+//         // //if (color) {
+//         //     // Initialize cart item
+//         //     var item = session.dialogData.item = { 
+//         //         product: "classic " + color[0].toLowerCase() + " t-shirt",
+//         //         size: size ? size[0].toLowerCase() : null,
+//         //         price: 25.0,
+//         //         qty: 1
+//         //     };
+//         //     if (!item.size) {
+//         //         // Prompt for size
+//         //         builder.Prompts.choice(session, "What size would you like?", "Small|Medium|Large|Extra Large");
+//         //     } else {
+//         //         //Skip to next waterfall step
+//         //         next();
+//         //     }
+//         // } else {
+//         //     // Invalid product
+//         //     session.send("I'm sorry... That product wasn't found.").endDialog();
+//         // }   
+//         session.send("You have made a selection");
+//     }//,
+//     // function (session, results) {
+//     //     // Save size if prompted
+//     //     var item = session.dialogData.item;
+//     //     if (results.response) {
+//     //         item.size = results.response.entity.toLowerCase();
+//     //     }
+
+//     //     // Add to cart
+//     //     if (!session.userData.cart) {
+//     //         session.userData.cart = [];
+//     //     }
+//     //     session.userData.cart.push(item);
+
+//     //     // Send confirmation to users
+//     //     session.send("A '%(size)s %(product)s' has been added to your cart.", item).endDialog();
+//     // }
+// ]).triggerAction({ matches: 'wehjbfkfkjadsgfakjsnfjs' });
 // Helpers
 function itemAsAttachment(item) {
     return new builder.HeroCard()
         .title(item.name)
-        // .subtitle('%d stars. %d reviews. From $%d per night.', item.rating, item.numberOfReviews, item.priceStarting)
-        .images([new builder.CardImage().url(item.image)])
-        .buttons([
-            new builder.CardAction()
-                .title('Select')
-                .type('openUrl')
-            // .value('https://www.bing.com/search?q=hotels+in+' + encodeURIComponent())
-
-        ]);
+        .subtitle('COLOUR : %s', item.color)
+        .images([new builder.CardImage().url(item.image)]);
+    // .button([
+    //     builder.CardAction.imBack(session, "wehjbfkfkjadsgfakjsnfjs", "Select")
+    // ]);
 }
 // // Add help dialog
 // bot.dialog('help', function (session) {
@@ -153,3 +220,6 @@ function itemAsAttachment(item) {
 // }).triggerAction({
 //     matches: /^help/i
 // });
+// function getData(item) {
+//     selectedItem = 'You selected ' + item.name;
+// }
